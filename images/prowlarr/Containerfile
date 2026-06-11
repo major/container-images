@@ -1,0 +1,36 @@
+FROM registry.access.redhat.com/ubi9/ubi AS builder
+
+# renovate: datasource=github-releases depName=Prowlarr/Prowlarr
+ARG PROWLARR_VERSION=2.4.0.5397
+ARG PROWLARR_SHA256=95c1285d286513fe9565767291bde93940fdb432dbad3fdd41faa60f73eabcca
+
+RUN mkdir -p /opt/prowlarr /config \
+    && curl -fsSL \
+        "https://github.com/Prowlarr/Prowlarr/releases/download/v${PROWLARR_VERSION}/Prowlarr.master.${PROWLARR_VERSION}.linux-core-x64.tar.gz" \
+        -o /tmp/prowlarr.tar.gz \
+    && echo "${PROWLARR_SHA256}  /tmp/prowlarr.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/prowlarr.tar.gz -C /opt/prowlarr --strip-components=1 \
+    && rm -f /tmp/prowlarr.tar.gz \
+    && rm -rf /opt/prowlarr/Prowlarr.Update \
+    && find /opt/prowlarr -name '*.pdb' -delete
+
+FROM registry.access.redhat.com/hi/dotnet-runtime:8.0
+
+ARG PROWLARR_VERSION=2.4.0.5397
+
+LABEL org.opencontainers.image.source="https://github.com/major/container-images" \
+      org.opencontainers.image.title="prowlarr" \
+      org.opencontainers.image.version="${PROWLARR_VERSION}" \
+      org.opencontainers.image.base.name="registry.access.redhat.com/hi/dotnet-runtime:8.0"
+
+COPY --from=builder --chown=1026:100 /opt/prowlarr /opt/prowlarr
+COPY --from=builder --chown=1026:100 /config /config
+COPY --from=builder /usr/lib64/libsqlite3.so.0* /usr/lib64/
+
+ENV XDG_CONFIG_HOME=/config
+
+USER 1026:100
+VOLUME ["/config"]
+EXPOSE 9696
+
+ENTRYPOINT ["/opt/prowlarr/Prowlarr", "-nobrowser", "-data=/config"]

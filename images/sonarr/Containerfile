@@ -1,0 +1,36 @@
+FROM registry.access.redhat.com/ubi9/ubi AS builder
+
+# renovate: datasource=github-releases depName=Sonarr/Sonarr
+ARG SONARR_VERSION=4.0.17.2952
+ARG SONARR_SHA256=d5142372067d727979421ca7b1d60601ceecd9758af3a7dafacc6ebba831777a
+
+RUN mkdir -p /opt/sonarr /config \
+    && curl -fsSL \
+        "https://github.com/Sonarr/Sonarr/releases/download/v${SONARR_VERSION}/Sonarr.main.${SONARR_VERSION}.linux-x64.tar.gz" \
+        -o /tmp/sonarr.tar.gz \
+    && echo "${SONARR_SHA256}  /tmp/sonarr.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/sonarr.tar.gz -C /opt/sonarr --strip-components=1 \
+    && rm -f /tmp/sonarr.tar.gz \
+    && rm -rf /opt/sonarr/Sonarr.Update \
+    && find /opt/sonarr -name '*.pdb' -delete
+
+FROM registry.access.redhat.com/hi/dotnet-runtime:8.0
+
+ARG SONARR_VERSION=4.0.17.2952
+
+LABEL org.opencontainers.image.source="https://github.com/major/container-images" \
+      org.opencontainers.image.title="sonarr" \
+      org.opencontainers.image.version="${SONARR_VERSION}" \
+      org.opencontainers.image.base.name="registry.access.redhat.com/hi/dotnet-runtime:8.0"
+
+COPY --from=builder --chown=1026:100 /opt/sonarr /opt/sonarr
+COPY --from=builder --chown=1026:100 /config /config
+COPY --from=builder /usr/lib64/libsqlite3.so.0* /usr/lib64/
+
+ENV XDG_CONFIG_HOME=/config
+
+USER 1026:100
+VOLUME ["/config"]
+EXPOSE 8989
+
+ENTRYPOINT ["/opt/sonarr/Sonarr", "-nobrowser", "-data=/config"]

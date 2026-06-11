@@ -25,6 +25,7 @@ LABEL org.opencontainers.image.source="https://github.com/major/container-images
 
 COPY --from=builder --chown=1026:100 /opt/radarr /opt/radarr
 COPY --from=builder --chown=1026:100 /config /config
+COPY --from=builder /usr/lib64/libsqlite3.so.0* /usr/lib64/
 
 ENV XDG_CONFIG_HOME=/config
 
