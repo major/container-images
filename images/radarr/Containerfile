@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/ubi AS builder
+FROM registry.access.redhat.com/ubi9/ubi@sha256:46d19c10caf9888e8a01131283eaaf50c7f5d4eddab02cd92a66f8adf2e15407 AS builder
 
 # renovate: datasource=custom.servarr depName=radarr versioning=loose registryUrl=https://radarr.servarr.com/v1/update/master/changes?runtime=netcore&os=linux&arch=x64
 ARG RADARR_VERSION=6.2.1.10461
@@ -14,7 +14,7 @@ RUN mkdir -p /opt/radarr /config \
     && rm -rf /opt/radarr/Radarr.Update \
     && find /opt/radarr -name '*.pdb' -delete
 
-FROM registry.access.redhat.com/hi/dotnet-runtime:8.0
+FROM registry.access.redhat.com/hi/dotnet-runtime:8.0@sha256:c8e1d7b7b5522c57f6f37034defefd722b2c3e90da78b1b0d67256631a141c13
 
 ARG RADARR_VERSION=6.2.1.10461
 
