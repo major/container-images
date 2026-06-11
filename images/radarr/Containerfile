@@ -1,0 +1,35 @@
+FROM registry.access.redhat.com/ubi9/ubi AS builder
+
+# renovate: datasource=github-releases depName=Radarr/Radarr
+ARG RADARR_VERSION=6.2.1.10461
+ARG RADARR_SHA256=4cae05c28b418d17d3f4cb9bc9ddc9d3f536122a9237d67aecd7afb751e52f7e
+
+RUN mkdir -p /opt/radarr /config \
+    && curl -fsSL \
+        "https://github.com/Radarr/Radarr/releases/download/v${RADARR_VERSION}/Radarr.master.${RADARR_VERSION}.linux-core-x64.tar.gz" \
+        -o /tmp/radarr.tar.gz \
+    && echo "${RADARR_SHA256}  /tmp/radarr.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/radarr.tar.gz -C /opt/radarr --strip-components=1 \
+    && rm -f /tmp/radarr.tar.gz \
+    && rm -rf /opt/radarr/Radarr.Update \
+    && find /opt/radarr -name '*.pdb' -delete
+
+FROM registry.access.redhat.com/hi/dotnet-runtime:8.0
+
+ARG RADARR_VERSION=6.2.1.10461
+
+LABEL org.opencontainers.image.source="https://github.com/major/container-images" \
+      org.opencontainers.image.title="radarr" \
+      org.opencontainers.image.version="${RADARR_VERSION}" \
+      org.opencontainers.image.base.name="registry.access.redhat.com/hi/dotnet-runtime:8.0"
+
+COPY --from=builder --chown=1026:100 /opt/radarr /opt/radarr
+COPY --from=builder --chown=1026:100 /config /config
+
+ENV XDG_CONFIG_HOME=/config
+
+USER 1026:100
+VOLUME ["/config"]
+EXPOSE 7878
+
+ENTRYPOINT ["/opt/radarr/Radarr", "-nobrowser", "-data=/config"]
