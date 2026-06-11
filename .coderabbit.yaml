@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+inheritance: true
+
+reviews:
+  path_instructions:
+    - path: "images/*/Containerfile"
+      instructions: |
+        Container image review for self-built Servarr images:
+        - Base images must stay pinned by digest.
+        - Builder stages may use UBI, but final stages must remain Hummingbird distroless images.
+        - Keep Servarr versions and SHA256 values paired. A version bump without the matching checksum is a build failure and a supply-chain risk.
+        - Do not add shell, package manager, or self-update behavior to final images.
+        - Preserve non-root runtime user 1026:100 unless a migration plan exists for existing config and media volumes.
+        - Verify runtime dependencies copied into final images are minimal and justified.
+
+    - path: ".github/workflows/**"
+      instructions: |
+        GitHub Actions review for image publishing:
+        - PR builds should validate images without pushing, signing, or attesting.
+        - Push and scheduled builds may publish, sign, and attest images.
+        - Actions should stay pinned by commit SHA.
+        - Keep workflow permissions minimal: contents read, packages write, id-token write, attestations write.
+        - Preserve per-app BuildKit cache scopes so matrix jobs do not clobber each other.
+
+    - path: "renovate.json"
+      instructions: |
+        Renovate review:
+        - Validate custom.servarr datasource and regex manager changes carefully.
+        - Servarr updates must update both *_VERSION and *_SHA256 in the same replacement.
+        - Hummingbird dotnet-runtime should stay constrained to the 8.0 stream unless the app runtime requirement changes.
