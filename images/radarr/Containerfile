@@ -1,6 +1,6 @@
 FROM registry.access.redhat.com/ubi9/ubi AS builder
 
-# renovate: datasource=github-releases depName=Radarr/Radarr
+# renovate: datasource=custom.servarr depName=radarr versioning=loose registryUrl=https://radarr.servarr.com/v1/update/master/changes?runtime=netcore&os=linux&arch=x64
 ARG RADARR_VERSION=6.2.1.10461
 ARG RADARR_SHA256=4cae05c28b418d17d3f4cb9bc9ddc9d3f536122a9237d67aecd7afb751e52f7e
 

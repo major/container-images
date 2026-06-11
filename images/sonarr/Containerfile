@@ -1,6 +1,6 @@
 FROM registry.access.redhat.com/ubi9/ubi AS builder
 
-# renovate: datasource=github-releases depName=Sonarr/Sonarr
+# renovate: datasource=custom.servarr depName=sonarr versioning=loose registryUrl=https://services.sonarr.tv/v1/update/v4-stable/changes?runtime=netcore&os=linux&arch=x64&version=4.0.0.0
 ARG SONARR_VERSION=4.0.17.2952
 ARG SONARR_SHA256=d5142372067d727979421ca7b1d60601ceecd9758af3a7dafacc6ebba831777a
 

@@ -1,3 +1,50 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json"
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "dockerfile": {
+    "managerFilePatterns": ["/^images\\/.+\\/Containerfile$/"]
+  },
+  "customDatasources": {
+    "servarr": {
+      "format": "json",
+      "transformTemplates": [
+        "{\"releases\": $map($, function($release) { {\"version\": $release.version, \"digest\": $release.hash} })}"
+      ]
+    }
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^images\\/(prowlarr|radarr|sonarr)\\/Containerfile$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>custom\\.servarr) depName=(?<depName>[a-z]+) versioning=(?<versioning>loose) registryUrl=(?<registryUrl>https://\\S+)\\nARG (?<argName>[A-Z]+)_VERSION=(?<currentValue>\\S+)\\nARG [A-Z]+_SHA256=(?<currentDigest>[a-f0-9]+)"
+      ],
+      "autoReplaceStringTemplate": "# renovate: datasource={{{datasource}}} depName={{{depName}}} versioning={{{versioning}}} registryUrl={{{registryUrl}}}\nARG {{{argName}}}_VERSION={{{newValue}}}\nARG {{{argName}}}_SHA256={{{newDigest}}}"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Pin and automerge Hummingbird base image digest updates immediately",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["registry.access.redhat.com/hi/dotnet-runtime"],
+      "allowedVersions": "/^8\\.0$/",
+      "pinDigests": true,
+      "automerge": true,
+      "automergeType": "branch"
+    },
+    {
+      "description": "Automerge Servarr patch/minor image rebuilds after a short stability window",
+      "matchDatasources": ["custom.servarr"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "minimumReleaseAge": "3 days",
+      "automerge": true,
+      "automergeType": "branch"
+    },
+    {
+      "description": "Require manual review for Servarr major updates",
+      "matchDatasources": ["custom.servarr"],
+      "matchUpdateTypes": ["major"],
+      "addLabels": ["major-update"]
+    }
+  ]
 }

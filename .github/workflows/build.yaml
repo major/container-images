@@ -1,0 +1,118 @@
+name: Build images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - images/**
+      - .github/workflows/build.yaml
+  schedule:
+    - cron: '27 8 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  attestations: write
+  contents: read
+  id-token: write
+  packages: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: prowlarr
+            arg_prefix: PROWLARR
+            update_url: https://prowlarr.servarr.com/v1/update/master/changes?runtime=netcore&os=linux&arch=x64
+          - app: radarr
+            arg_prefix: RADARR
+            update_url: https://radarr.servarr.com/v1/update/master/changes?runtime=netcore&os=linux&arch=x64
+          - app: sonarr
+            arg_prefix: SONARR
+            update_url: https://services.sonarr.tv/v1/update/v4-stable/changes?runtime=netcore&os=linux&arch=x64&version=4.0.0.0
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Read pinned version and checksum
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          containerfile="images/${{ matrix.app }}/Containerfile"
+          version=$(grep -m1 -E "^ARG ${{ matrix.arg_prefix }}_VERSION=" "${containerfile}" | cut -d= -f2)
+          sha256=$(grep -m1 -E "^ARG ${{ matrix.arg_prefix }}_SHA256=" "${containerfile}" | cut -d= -f2)
+          printf 'version=%s\n' "${version}" >> "${GITHUB_OUTPUT}"
+          printf 'sha256=%s\n' "${sha256}" >> "${GITHUB_OUTPUT}"
+
+      - name: Check pinned checksum against Servarr API
+        shell: bash
+        run: |
+          set -euo pipefail
+          api_hash=$(curl -fsSL '${{ matrix.update_url }}' | jq -r --arg version '${{ steps.version.outputs.version }}' 'first(.[] | select(.version == $version) | .hash) // ""')
+          if [[ -z "${api_hash}" ]]; then
+            printf '::warning::Could not find version %s in the Servarr update API\n' '${{ steps.version.outputs.version }}'
+            exit 0
+          fi
+          if [[ "${api_hash}" != '${{ steps.version.outputs.sha256 }}' ]]; then
+            printf '::warning::Pinned SHA256 does not match Servarr API for %s: pinned=%s api=%s\n' '${{ steps.version.outputs.version }}' '${{ steps.version.outputs.sha256 }}' "${api_hash}"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/major/${{ matrix.app }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.version }}
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.app }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.source=https://github.com/major/container-images
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: images/${{ matrix.app }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,scope=${{ matrix.app }},mode=max
+          provenance: true
+          sbom: true
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v4
+
+      - name: Sign image
+        shell: bash
+        run: cosign sign --yes ghcr.io/major/${{ matrix.app }}@${{ steps.build.outputs.digest }}
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ghcr.io/major/${{ matrix.app }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
