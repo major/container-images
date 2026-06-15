@@ -14,7 +14,7 @@ RUN mkdir -p /opt/sonarr /config \
     && rm -rf /opt/sonarr/Sonarr.Update \
     && find /opt/sonarr -name '*.pdb' -delete
 
-FROM registry.access.redhat.com/hi/dotnet-runtime:8.0@sha256:c8e1d7b7b5522c57f6f37034defefd722b2c3e90da78b1b0d67256631a141c13
+FROM registry.access.redhat.com/hi/dotnet-runtime:8.0@sha256:02d697873b55d26c536cc780baf8adc7f78698a59683413e4d2354c40b714432
 
 ARG SONARR_VERSION=4.0.17.2952
 
