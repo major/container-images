@@ -1,0 +1,59 @@
+FROM registry.access.redhat.com/hi/python:3.12.13-builder@sha256:49c49b386c32cdd90bc3dadc5b36179fae643f53cc07eb2d678ddfd7eae5bb07 AS builder
+
+# renovate: datasource=pypi depName=apache-airflow versioning=pep440
+ARG AIRFLOW_VERSION=3.3.0
+ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf-kubernetes,common-io,common-messaging,docker,elasticsearch,fab,ftp,git,google,google-auth,graphviz,grpc,hashicorp,http,ldap,microsoft-azure,mysql,odbc,openlineage,opensearch,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,uv"
+ARG AIRFLOW_SHA512=8ab2baf8b2e0095a775a9c7991370481349fce96ea94ee16eafe80240b1eb62d1d175086a66c4dfbce9ba0831e538f920c2c532649138f7984c11c96dff02777
+
+# Hummingbird builder runs as UID 65532 by default; /opt/ is root-owned.
+# The build script needs root to dnf-install dev headers and create the
+# venv under /opt/. The runtime stage is unprivileged (USER 50000:0).
+USER root
+
+COPY build.sh /tmp/build.sh
+RUN bash /tmp/build.sh
+
+FROM registry.access.redhat.com/hi/python:3.12.13@sha256:615f1c5a092c63e8a2c2029c83b945d9562009c25da2bd6251a941522de0e3aa
+
+ARG AIRFLOW_VERSION=3.3.0
+
+LABEL org.opencontainers.image.source="https://github.com/major/container-images" \
+      org.opencontainers.image.title="airflow" \
+      org.opencontainers.image.version="${AIRFLOW_VERSION}" \
+      org.opencontainers.image.base.name="registry.access.redhat.com/hi/python:3.12"
+
+COPY --from=builder --chown=50000:0 /opt/airflow /opt/airflow
+
+# Runtime .so copies from the builder. The Hummingbird distroless base
+# doesn't carry these and they aren't bundled into the airflow wheel's
+# manylinux packages:
+#   - libldap / liblber / libsasl2 / libevent  → python-ldap (the `ldap` extra)
+#   - libmariadb                                → mysqlclient   (the `mysql` extra;
+#                                                has no PyPI manylinux wheel, builds
+#                                                from C source against
+#                                                mariadb-connector-c-devel)
+# psycopg2-binary and lxml ship manylinux wheels that bundle their deps
+# into site-packages, so no system copy is needed for those.
+# All copied as root-owned (0:0); the venv above is 50000:0 by contrast.
+COPY --from=builder --chown=0:0 /usr/lib64/libldap.so.2* /usr/lib64/
+COPY --from=builder --chown=0:0 /usr/lib64/liblber.so.2* /usr/lib64/
+COPY --from=builder --chown=0:0 /usr/lib64/libsasl2.so.3* /usr/lib64/
+COPY --from=builder --chown=0:0 /usr/lib64/libevent-2.1.so.7* /usr/lib64/
+COPY --from=builder --chown=0:0 /usr/lib64/libmariadb.so.3* /usr/lib64/
+
+# The `git` extra (GitPython-backed DAG bundles) needs the `git` binary
+# at runtime. Hummingbird distroless doesn't ship it, so the builder
+# installs git and we copy the binary + the core libexec tree across.
+COPY --from=builder --chown=0:0 /usr/bin/git /usr/bin/git
+COPY --from=builder --chown=0:0 /usr/libexec/git-core /usr/libexec/git-core
+
+ENV AIRFLOW_HOME=/opt/airflow \
+    PATH="/opt/airflow/bin:${PATH}" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+USER 50000:0
+VOLUME ["/opt/airflow"]
+EXPOSE 8080
+
+ENTRYPOINT ["/opt/airflow/bin/airflow"]
