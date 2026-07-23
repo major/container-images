@@ -44,6 +44,9 @@ jobs:
           - app: sonarr
             arg_prefix: SONARR
             update_url: https://services.sonarr.tv/v1/update/v4-stable/changes?runtime=netcore&os=linux&arch=x64&version=4.0.0.0
+          - app: airflow
+            arg_prefix: AIRFLOW
+            update_url: https://pypi.org/pypi/apache-airflow/json
 
     steps:
       - name: Check out repository
@@ -56,11 +59,12 @@ jobs:
           set -euo pipefail
           containerfile="images/${{ matrix.app }}/Containerfile"
           version=$(grep -m1 -E "^ARG ${{ matrix.arg_prefix }}_VERSION=" "${containerfile}" | cut -d= -f2)
-          sha256=$(grep -m1 -E "^ARG ${{ matrix.arg_prefix }}_SHA256=" "${containerfile}" | cut -d= -f2)
+          sha256=$(grep -m1 -E "^ARG ${{ matrix.arg_prefix }}_SHA256=" "${containerfile}" | cut -d= -f2 || true)
           printf 'version=%s\n' "${version}" >> "${GITHUB_OUTPUT}"
           printf 'sha256=%s\n' "${sha256}" >> "${GITHUB_OUTPUT}"
 
       - name: Check pinned checksum against Servarr API
+        if: steps.version.outputs.sha256 != ''
         shell: bash
         run: |
           set -euo pipefail
