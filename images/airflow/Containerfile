@@ -13,7 +13,7 @@ USER root
 COPY build.sh /tmp/build.sh
 RUN bash /tmp/build.sh
 
-FROM registry.access.redhat.com/hi/python:3.12.13@sha256:615f1c5a092c63e8a2c2029c83b945d9562009c25da2bd6251a941522de0e3aa
+FROM registry.access.redhat.com/hi/python:3.12.13@sha256:14e7f7b34ccd01d2cf9b34817284b4c34478e09913a4207ea470ec0e875d5f5b
 
 ARG AIRFLOW_VERSION=3.3.0
 
