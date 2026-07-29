@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/hi/python:3.12.13-builder@sha256:49c49b386c32cdd90bc3dadc5b36179fae643f53cc07eb2d678ddfd7eae5bb07 AS builder
+FROM registry.access.redhat.com/hi/python:3.12.13-builder@sha256:f62b30c6a12851837dd2648a6ff655079ef5d6665535db0271b9857123286334 AS builder
 
 # renovate: datasource=pypi depName=apache-airflow versioning=pep440
 ARG AIRFLOW_VERSION=3.3.0
