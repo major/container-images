@@ -14,7 +14,7 @@ RUN mkdir -p /opt/prowlarr /config \
     && rm -rf /opt/prowlarr/Prowlarr.Update \
     && find /opt/prowlarr -name '*.pdb' -delete
 
-FROM registry.access.redhat.com/hi/dotnet-runtime:8.0@sha256:d38eda6776897ca23ee7d0b65206f7c4080d3a203619ca033f8eaa5f01cd7553
+FROM registry.access.redhat.com/hi/dotnet-runtime:8.0@sha256:36ebc937fe34a436b0e842d3a9b4e1f8e273db7c43d99af4b5d87b8b7b7d1e15
 
 ARG PROWLARR_VERSION=2.4.0.5397
 
