@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/ubi@sha256:46d19c10caf9888e8a01131283eaaf50c7f5d4eddab02cd92a66f8adf2e15407 AS builder
+FROM registry.access.redhat.com/ubi9/ubi@sha256:e79f79172a6779775e1733cb4f49cd5ef03a0703c68ec46c717f93b9ac4a5e71 AS builder
 
 # renovate: datasource=custom.servarr depName=prowlarr versioning=loose registryUrl=https://prowlarr.servarr.com/v1/update/master/changes?runtime=netcore&os=linux&arch=x64
 ARG PROWLARR_VERSION=2.4.0.5397
