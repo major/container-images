@@ -11,13 +11,12 @@ Hardened, pinned rebuilds of self-hosted apps on Red Hat Hummingbird distroless 
 Current images:
 
 - `prowlarr`, `radarr`, `sonarr` — Servarr .NET apps on `hi/dotnet-runtime:8.0`.
-- `airflow` — Apache Airflow 3.x on `hi/python:3.12` (full `AIRFLOW_EXTRAS` default from upstream, equivalent to `apache/airflow:latest`).
 
 ## Layout
 
-- `images/<app>/Containerfile` - one multi-stage Containerfile per app. Images with non-trivial build logic (currently `airflow`) may also have a `build.sh` alongside the Containerfile that is COPYed into the builder stage.
+- `images/<app>/Containerfile` - one multi-stage Containerfile per app.
 - `.github/workflows/build.yaml` - the entire build/sign/attest pipeline, driven by a matrix.
-- `renovate.json` - dependency automation, including a custom Servarr datasource and a PyPI regex manager for Airflow.
+- `renovate.json` - dependency automation, including a custom Servarr datasource.
 
 ## Containerfile conventions (non-obvious)
 
@@ -36,20 +35,9 @@ Servarr-specific (`.NET` runtime, image dirs `images/{prowlarr,radarr,sonarr}/`)
 - Final user: `1026:100`. `libsqlite3.so.0*` is copied from the builder because the distroless runtime lacks it.
 - `XDG_CONFIG_HOME=/config`, `/config` is a volume, app data lives there (`-data=/config`).
 
-Airflow-specific (Python runtime, image dir `images/airflow/`):
-
-- The airflow image is meaningfully more complex than the Servarr
-  pattern (build script, runtime .so copies for python-ldap +
-  mysqlclient, git binary copy, full upstream extras list). The
-  detailed conventions live in **`images/airflow/AGENTS.md`** so they
-  live next to the code they describe. The top-level file is the
-  source of truth for repo-wide concerns (two-stage build, Renovate,
-  CI flow); the per-image file is the source of truth for the
-  airflow image specifically. Update both when changing the image.
-
 ## Adding a new image
 
-1. Create `images/<app>/Containerfile` following an existing one (Servarr or Airflow family).
+1. Create `images/<app>/Containerfile` following an existing Servarr image.
 2. Add a matrix entry in `.github/workflows/build.yaml` with `app`, `arg_prefix` (uppercase, matches the `ARG` prefix), and `update_url` (the version-endpoint URL the CI step will hit to verify the pinned version is still current).
 3. Add (or extend) a `customManagers` block in `renovate.json` whose `managerFilePatterns` targets the new image's `Containerfile` and whose datasource matches the pin family (PyPI for python packages, `custom.<family>` for tarball+checksum flows).
 
@@ -62,7 +50,6 @@ Airflow-specific (Python runtime, image dir `images/airflow/`):
 
 ## Renovate behavior
 
-- Hummingbird base image digest bumps: pinned + auto-merged immediately, constrained to the `8.0` (dotnet) or `3.12` (python) tag.
+- Hummingbird base image digest bumps: pinned + auto-merged immediately, constrained to the `8.0` dotnet tag.
 - Servarr minor/patch: auto-merged after a 3-day stability window.
 - Servarr major: labeled `major-update`, requires manual review.
-- Airflow: version-only updates from PyPI. Every automated version bump also requires a manual `AIRFLOW_SHA512` update in the Containerfile (PyPI does not publish a wheel digest, so Renovate cannot update the hash). The PR will fail CI (`sha512sum -c` mismatch) until the hash is corrected. Manual review is required for every bump.
