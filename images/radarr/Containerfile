@@ -14,7 +14,7 @@ RUN mkdir -p /opt/radarr /config \
     && rm -rf /opt/radarr/Radarr.Update \
     && find /opt/radarr -name '*.pdb' -delete
 
-FROM registry.access.redhat.com/hi/dotnet-runtime:8.0@sha256:3c31ff862c921d5a27989570d46dc334f814b3444db1303f2870ca5ebdeb3dad
+FROM registry.access.redhat.com/hi/dotnet-runtime:8.0@sha256:26a21f962623346b4652086555ed2868826d1a481f3aff2fc1e5b1c8089808d9
 
 ARG RADARR_VERSION=6.2.1.10461
 
